@@ -17,17 +17,6 @@ namespace NASVC
             public static string filePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
             public static string directoryPath = System.IO.Path.GetDirectoryName(filePath);
             public const string filename = "NADB.sqlite";
-
-            /*public const SQLiteChangeSetStartFlags Flags =
-                // open the database in read/write mode
-                SQLiteChangeSetStartFlags. |
-                // create the database if it doesn't exist
-                SQLite.SQLiteOpenFlags.Create |
-                // enable multi-threaded database access
-                SQLite.SQLiteOpenFlags.SharedCache;*/
-
-
-
             public static string fullName
             {
                 // example: "C:\NodeAlive\NASVC\NASVC\bin\Debug\NADB.sqlite"
@@ -37,24 +26,36 @@ namespace NASVC
                 }
             }
         }
-
-        
-
-
         public static void Initialize() 
         {
             Log.Write("Initializing database...");
-            try
+            if(File.Exists(Filesystem.fullName))
             {
-                string connectionString = "Data Source=" + Filesystem.fullName + ";Version=3;New=True;Compress=True;";
-                SQLiteConnection connection = new SQLiteConnection(connectionString);
-                SQLiteConnection.CreateFile(Filesystem.fullName);
-                Log.Write("Database " + Filesystem.filename + " created successfully at " + Filesystem.directoryPath);
+                Log.Write("Database " + Filesystem.filename + " found at " + Filesystem.directoryPath);
+                Log.Write("Continuing...");
+
+                // FLAG:TODO test connection
+                // FLAG:TODO write log and exit app on connection failure
+                // FLAG:TODO check data initialization
+    
             }
-            catch
-            {
-                Log.Write("Database creation failure."); 
-            }
+			else
+			{
+                Log.Write("Database " + Filesystem.filename + " not found at " + Filesystem.directoryPath);
+                Log.Write("Creating file...");
+                try
+                {
+                    string connectionString = "Data Source=" + Filesystem.fullName + ";Version=3;New=True;Compress=True;";
+                    SQLiteConnection connection = new SQLiteConnection(connectionString);
+                    SQLiteConnection.CreateFile(Filesystem.fullName);
+                    Log.Write("Database " + Filesystem.filename + " created successfully at " + Filesystem.directoryPath);
+                }
+                catch
+                {
+                    Log.Write("Database creation failure."); 
+                }
+			}
+
         }
         public static string GetDBName()
         {

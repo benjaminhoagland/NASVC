@@ -24,7 +24,6 @@ namespace NASVC
             
             // initialize database
             Data.Initialize(); 
-            Log.Write(Data.GetDBName());
 
             Timer timer = new Timer();
             timer.Interval = 1000; // 1 seconds
