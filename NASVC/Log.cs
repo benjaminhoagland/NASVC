@@ -17,17 +17,24 @@ namespace NASVC
             NAEventLog = new EventLog();
             if (!EventLog.SourceExists("NodeAliveSource"))
             {
-                System.Diagnostics.EventLog.CreateEventSource(
-                    "NodeAliveSource", "NodeAlive");
+                EventLog.CreateEventSource("NodeAliveSource", "NodeAlive");
             }
             NAEventLog.Source = "NodeAliveSource";
             NAEventLog.Log = "NodeAlive";
-            Write("Logging initialized successfully.");
+            Write("NASVC logging initialized successfully.");
         }
 
         public static void Write(string message)
         {
-            NAEventLog.WriteEntry(message);
+            NAEventLog.WriteEntry(message, System.Diagnostics.EventLogEntryType.Information);
+        }
+        public static void WriteWarning(string message)
+        {
+            NAEventLog.WriteEntry(message, System.Diagnostics.EventLogEntryType.Warning);
+        }
+        public static void WriteError(string message)
+        {
+            NAEventLog.WriteEntry(message, System.Diagnostics.EventLogEntryType.Error);
         }
     }
 }

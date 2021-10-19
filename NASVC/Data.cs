@@ -41,7 +41,7 @@ namespace NASVC
             }
 			else
 			{
-                Log.Write("Database " + Filesystem.filename + " not found at " + Filesystem.directoryPath);
+                Log.WriteError("Database " + Filesystem.filename + " not found at " + Filesystem.directoryPath);
                 Log.Write("Creating file...");
                 try
                 {
@@ -52,7 +52,7 @@ namespace NASVC
                 }
                 catch
                 {
-                    Log.Write("Database creation failure."); 
+                    Log.WriteError("Database creation failure."); 
                 }
 			}
 
