@@ -48,7 +48,9 @@ namespace NASVC
                     string connectionString = "Data Source=" + Filesystem.fullName + ";Version=3;New=True;Compress=True;";
                     SQLiteConnection connection = new SQLiteConnection(connectionString);
                     SQLiteConnection.CreateFile(Filesystem.fullName);
+                    connection.Close();
                     Log.Write("Database " + Filesystem.filename + " created successfully at " + Filesystem.directoryPath);
+                    
                 }
                 catch
                 {
