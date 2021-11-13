@@ -58,14 +58,15 @@ namespace NASVC
             // Log.Write("selected node count is " + nodes.Count.ToString());
             foreach(var node in nodes)
 			{
+                if(node == null) continue;
                 var seconds = (DateTime.Now - node.LastResponse).TotalSeconds;
                 // Log.Write("node.Timeout is " + node.Timeout.ToString());
-                Log.Write("seconds are " + seconds);
-                Log.Write("node.Timeout / 3f is " + node.Timeout / 3f);
-                Log.Write("node.Timeout / 3f < seconds is " + (node.Timeout / 3f < seconds));
+                // Log.Write("seconds are " + seconds);
+                // Log.Write("node.Timeout / 3f is " + node.Timeout / 3f);
+                // Log.Write("node.Timeout / 3f < seconds is " + (node.Timeout / 3f < seconds));
                 if(node.Timeout / 3f < seconds)
 				{
-					Log.Write("node is due, add script to execution queue");
+					// Log.Write("node is due, add script to execution queue");
 					NodeExecutionQueue.Add(node);
 				}
                 else
@@ -78,66 +79,77 @@ namespace NASVC
 			}
             foreach(var node in NodesToBeRemoved)
 			{
+                if(node == null) continue;
                 if(NodeExecutionQueue.Contains(node))
 			    {
                     NodeExecutionQueue.Remove(node);
 			    }
 			}
-            var scripts = (from s in Data.Select.Script() select s).ToList();
             // Log.Write("selected script count is " + scripts.Count.ToString());
             // Log.Write("NodesToExecute count is: " + NodesToExecute.Count);
             foreach(var node in NodeExecutionQueue)
 			{
-                var script = (from s in scripts
+                if(node == null) continue;
+                var script = (from s in Data.Select.Script() 
                                 where s.NodeGUID == node.GUID
                                 select s).FirstOrDefault();
+                if(script == null) continue;
                 // Log.Write("selected script contents are:" + Environment.NewLine + script.Contents);
-
+                var result = new Data.Schema.Table.Result();
+                result.NodeGUID = node.GUID;
+                result.ScriptGUID = script.GUID;
+                result.DateCreated = DateTime.Now;
+                var status = dead;
+                var message = "No response.";
                 try
 				{
+                    Log.Write("attempting to run script " + script.GUID + " for node " + node.GUID);
                     System.Management.Automation.PowerShell ps = PowerShell.Create();
                     //ps.AddScript(script.Contents);
-                    ps.AddScript("$result = Test-Connection 8.8.8.8 -Quiet; if($result){Write-Output \"Connection to 8.8.8.8 successful\"; exit 0;}else{Write-Output \"Connection to 8.8.8.8 failure\"; exit 1;}");
-                    var result = new Data.Schema.Table.Result();
-                    result.NodeGUID = node.GUID;
-                    result.ScriptGUID = script.GUID;
-                    result.DateCreated = DateTime.Now;
+                    ps.AddScript(script.Contents);
                     Collection<PSObject> results = ps.Invoke();
-                    var status = alive;
                     if(ps.Streams.Error.Count > 0) 
-                    { status = dead; }
-                    var message = "";
+                    { 
+                        status = dead; 
+                        // foreach(var s in ps.Streams.Error)
+						//{
+                        //   Log.Write(s.ErrorDetails.Message);
+						//}
+                    }
+                    else
+					{
+                        status = alive;
+					}
+                    message = "";
                     foreach(PSObject r in results)
                     { 
                         message += r.ToString();
                     }
-                    result.DateFinishedExecution = DateTime.Now;
-                    result.Status = status;
-                    result.Contents = message;
-                    result.GUID = Guid.NewGuid().ToString();
-                    Data.Insert("result", new List<Data.RecordStructure.Attribute>()
-					{
-                        new Data.RecordStructure.Attribute("guid", result.GUID),
-                        new Data.RecordStructure.Attribute("node_guid", result.NodeGUID),
-                        new Data.RecordStructure.Attribute("script_guid", result.ScriptGUID),
-                        new Data.RecordStructure.Attribute("date_created", result.DateCreated.ToString(Data.timeformat)),
-                        new Data.RecordStructure.Attribute("date_finished_execution", result.DateFinishedExecution.ToString(Data.timeformat)),
-                        new Data.RecordStructure.Attribute("status", result.Status.ToString()),
-                        new Data.RecordStructure.Attribute("contents", result.Contents),
-					});
-                    Data.Update.Node(node.GUID, result.DateFinishedExecution, result.Status);
-
-
-                    Log.Write("node is done, remove script from execution queue");
-                    NodesToBeRemoved.Add(node);
+                    // Log.Write("node is done, remove script from execution queue");
 				}
                 catch (RuntimeException ex)
                 {
-                    Log.Write("Terminating error:");
+                    status = dead;
                     Log.Write(ex.Message);
                 }
+                result.DateFinishedExecution = DateTime.Now;
+                result.Status = status;
+                result.Contents = message;
+                result.GUID = Guid.NewGuid().ToString();
+                Data.Insert("result", new List<Data.RecordStructure.Attribute>()
+				{
+                    new Data.RecordStructure.Attribute("guid", result.GUID),
+                    new Data.RecordStructure.Attribute("node_guid", result.NodeGUID),
+                    new Data.RecordStructure.Attribute("script_guid", result.ScriptGUID),
+                    new Data.RecordStructure.Attribute("date_created", result.DateCreated.ToString(Data.timeformat)),
+                    new Data.RecordStructure.Attribute("date_finished_execution", result.DateFinishedExecution.ToString(Data.timeformat)),
+                    new Data.RecordStructure.Attribute("status", result.Status.ToString()),
+                    new Data.RecordStructure.Attribute("contents", result.Contents),
+				});
+                Data.Update.Node(node.GUID, result.DateFinishedExecution, result.Status);
+                NodesToBeRemoved.Add(node);
 
-                    //RunTask(script);
+                RunTask(script);
                 
 			}
             
@@ -146,23 +158,24 @@ namespace NASVC
         }
         public async void RunTask(Data.Schema.Table.Script script)
 		{
-            if(ExecutingGUIDs.Contains(script.GUID)) return;
-            ExecutingGUIDs.Add(script.GUID);
+            Log.Write("Executed RunTask at " + DateTime.Now);
+            // if(ExecutingGUIDs.Contains(script.GUID)) return;
+            // ExecutingGUIDs.Add(script.GUID);
             var result = await ExecutePowerShellTask(script);
-            ExecutingGUIDs.Remove(script.GUID);
+            // ExecutingGUIDs.Remove(script.GUID);
             foreach(var pSObject in result)
 			{
-                Log.Write(pSObject.ToString());
-                Log.Write("got here 6");
+                // Log.Write(pSObject.ToString());
 			}
+            Log.Write("Completed RunTAsk at " + DateTime.Now);
 		}
         public async Task<PSDataCollection<PSObject>> ExecutePowerShellTask(Data.Schema.Table.Script script)
         {
-            Log.Write("got here 5");
-            var ps = PowerShell.Create();
-            ps.AddScript(script.Contents);
+            Log.Write("ExecutePowerShellTask executed at " + DateTime.Now);
+            // var ps = PowerShell.Create();
+            // ps.AddScript(script.Contents);
             var result = new PSDataCollection<PSObject>();
-            // var result = await Task.Factory.FromAsync(ps.BeginInvoke(), psResult => ps.EndInvoke(psResult));
+            //var result = await Task.Factory.FromAsync(ps.BeginInvoke(), psResult => ps.EndInvoke(psResult));
             return result;
         }
 
