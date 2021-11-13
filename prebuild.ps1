@@ -13,10 +13,12 @@ try
     $foundService = Get-Service 'NASVC';
     if($null -ne $foundService)
     {
-        Write-Output "Found service NASVC. Attempting to stop this service..."
-        Write-Output 'Stopping service NASVC...'
+        Write-Output "Found service NASVC. Attempting to stop this service...";
+        Write-Output 'Stopping NASVC process';
+        Stop-Process -Name "NASVC" -ErrorAction SilentlyContinue;
+        Write-Output 'Stopping service NASVC...';
         Stop-Service NASVC -ErrorAction SilentlyContinue;
-        Write-Output 'Unregistering (removing) service NASVC...'
+        Write-Output 'Unregistering (removing) service NASVC...';
         Remove-Service NASVC; 
     }
     else
