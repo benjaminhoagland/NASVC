@@ -111,7 +111,7 @@
 :: prebuild
 :: this script unregisters any existing services that match the project
 :: note that vs2019 will need to be run as an administrator for the build script to execute without error
-pwsh -ExecutionPolicy Bypass -NoProfile -NonInteractive -File $(SolutionDir)prebuild.ps1</PreBuildEvent>
+:: pwsh -ExecutionPolicy Bypass -NoProfile -NonInteractive -File $(SolutionDir)prebuild.ps1</PreBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
     <PostBuildEvent>:: example fully qualified directory "C:\Program Files\PowerShell\7\pwsh.exe"
@@ -119,7 +119,7 @@ pwsh -ExecutionPolicy Bypass -NoProfile -NonInteractive -File $(SolutionDir)preb
 :: post-build
 :: this script registers the service after building it in VS2019
 :: note that vs2019 will need to be run as an administrator for the build script to execute without error
-pwsh -ExecutionPolicy Bypass -NoProfile -NonInteractive -File $(SolutionDir)postbuild.ps1</PostBuildEvent>
+:: pwsh -ExecutionPolicy Bypass -NoProfile -NonInteractive -File $(SolutionDir)postbuild.ps1</PostBuildEvent>
   </PropertyGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>

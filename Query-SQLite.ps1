@@ -5,7 +5,11 @@
 # $query = "select name, guid,alive  from node";
 # Invoke-SqliteQuery -DataSource 'C:\NodeAlive\NASVC\NASVC\bin\Debug\NADB.sqlite' -Query $query | out-string
 
-$query = "select contents, date_finished_execution from result"; 
+$query = "
+
+
+select * from result
+"; 
 Invoke-SqliteQuery -DataSource 'C:\NodeAlive\NASVC\NASVC\bin\Debug\NADB.sqlite' -Query $query | out-string
 
 exit;

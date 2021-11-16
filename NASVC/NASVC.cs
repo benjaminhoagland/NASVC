@@ -39,23 +39,45 @@ namespace NASVC
         }
         public async void OnTimer(object sender,ElapsedEventArgs args)
         {
+            try
+			{
+
             foreach(var node in Data.Select.Node())
             {
-                if(node.Timeout / 3f < (DateTime.Now - node.LastResponse).TotalSeconds &&
-                   !NodesToExecute.Contains(node) &&
-                   !ExecutingScriptGUIDs.Contains((from s in Data.Select.Script()
-                                                   where s.NodeGUID == node.GUID
-                                                   select s.GUID).FirstOrDefault()))
+                try
                 {
-                    NodesToExecute.Enqueue(node);
+                    if(node.Timeout / 3f < (DateTime.Now - node.LastResponse).TotalSeconds &&
+                       !NodesToExecute.Contains(node) &&
+                       !ExecutingScriptGUIDs.Contains((from s in Data.Select.Script()
+                                                       where s.NodeGUID == node.GUID
+                                                       select s.GUID).FirstOrDefault()))
+                    {
+                        NodesToExecute.Enqueue(node);
+                    }
                 }
+                catch
+                { }
             }
+			}
+            catch
+			{
+
+			}
             while(NodesToExecute.Count > 0)
             {
                 var node = NodesToExecute.Dequeue();
+                if(node == null) continue;
+                try
+				{
+
                 ExecutingScriptGUIDs.Add((from s in Data.Select.Script()
                                           where s.NodeGUID == node.GUID
                                           select s.GUID).FirstOrDefault());
+				}
+                catch
+				{
+
+				}
                 try
 				{
                     if(node != null) ExecuteNodeScript(node).Start();
@@ -68,45 +90,51 @@ namespace NASVC
         }
         private async Task ExecuteNodeScript(Data.Schema.Table.Node node)
 		{
-            var script = (from s in Data.Select.Script()
-                                  where s.NodeGUID == node.GUID
-                                  select s).FirstOrDefault();
-            if(script.Contents == null) return;
-            PowerShell ps = PowerShell.Create().AddScript(script.Contents);
-            
-            var result = new Data.Schema.Table.Result();
-            result.DateCreated = DateTime.Now;
             try
 			{
-                var powerShellResults = await Task.Factory.FromAsync(ps.BeginInvoke(), psResult => ps.EndInvoke(psResult));
-                result.Status = ps.Streams.Error.Count > 0 ? false : true;
-                foreach(PSObject r in powerShellResults)
-                { 
-                    result.Contents += r.ToString();
+                var script = (from s in Data.Select.Script()
+                                      where s.NodeGUID == node.GUID
+                                      select s).FirstOrDefault();
+                if(script.Contents == null) return;
+                PowerShell ps = PowerShell.Create().AddScript(script.Contents);
+                var result = new Data.Schema.Table.Result();
+                result.DateCreated = DateTime.Now;
+                try
+			    {
+                    var powerShellResults = await Task.Factory.FromAsync(ps.BeginInvoke(), psResult => ps.EndInvoke(psResult));
+                    result.Status = ps.Streams.Error.Count > 0 ? false : true;
+                    foreach(PSObject r in powerShellResults)
+                    { 
+                        result.Contents += r.ToString();
+                    }
+			    } 
+                catch (RuntimeException ex)
+                {
+                    result.Status = false;
+                    result.Contents = "No response from node: " + node.Name;
+                    Log.Write(ex.Message);
                 }
-			} 
-            catch (RuntimeException ex)
-            {
-                result.Status = false;
-                result.Contents = "No response from node: " + node.Name;
-                Log.Write(ex.Message);
-            }
-            result.DateFinishedExecution = DateTime.Now;
-            result.GUID = Guid.NewGuid().ToString();
-            result.NodeGUID = node.GUID;
-            result.ScriptGUID = script.GUID;
-            Data.Insert("result", new List<Data.RecordStructure.Attribute>()
+                result.DateFinishedExecution = DateTime.Now;
+                result.GUID = Guid.NewGuid().ToString();
+                result.NodeGUID = node.GUID;
+                result.ScriptGUID = script.GUID;
+                Data.Insert("result", new List<Data.RecordStructure.Attribute>()
+			    {
+                    new Data.RecordStructure.Attribute("guid", result.GUID),
+                    new Data.RecordStructure.Attribute("node_guid", result.NodeGUID),
+                    new Data.RecordStructure.Attribute("script_guid", result.ScriptGUID),
+                    new Data.RecordStructure.Attribute("date_created", result.DateCreated.ToString(Data.timeformat)),
+                    new Data.RecordStructure.Attribute("date_finished_execution", result.DateFinishedExecution.ToString(Data.timeformat)),
+                    new Data.RecordStructure.Attribute("status", result.Status.ToString()),
+                    new Data.RecordStructure.Attribute("contents", result.Contents),
+			    });
+                Data.Update.Node(node.GUID, result.DateFinishedExecution, result.Status);
+                if(ExecutingScriptGUIDs.Contains(script.GUID)) ExecutingScriptGUIDs.Remove(script.GUID);
+			}
+            catch
 			{
-                new Data.RecordStructure.Attribute("guid", result.GUID),
-                new Data.RecordStructure.Attribute("node_guid", result.NodeGUID),
-                new Data.RecordStructure.Attribute("script_guid", result.ScriptGUID),
-                new Data.RecordStructure.Attribute("date_created", result.DateCreated.ToString(Data.timeformat)),
-                new Data.RecordStructure.Attribute("date_finished_execution", result.DateFinishedExecution.ToString(Data.timeformat)),
-                new Data.RecordStructure.Attribute("status", result.Status.ToString()),
-                new Data.RecordStructure.Attribute("contents", result.Contents),
-			});
-            Data.Update.Node(node.GUID, result.DateFinishedExecution, result.Status);
-            if(ExecutingScriptGUIDs.Contains(script.GUID)) ExecutingScriptGUIDs.Remove(script.GUID);
+
+			}
 		}
     }
 }
